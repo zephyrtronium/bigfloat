@@ -40,7 +40,7 @@ func TestExp(t *testing.T) {
 			z := new(big.Float).SetPrec(prec)
 			z.Parse(test.z, 10)
 
-			x := bigfloat.Exp(z)
+			x := bigfloat.Exp(new(big.Float).Set(z))
 
 			if x.Cmp(want) != 0 {
 				t.Errorf("prec = %d, Exp(%v) =\ngot  %g;\nwant %g", prec, test.z, x, want)
@@ -54,7 +54,7 @@ func testExpFloat64(scale float64, nTests int, t *testing.T) {
 		r := rand.Float64() * scale
 
 		z := big.NewFloat(r)
-		z64, acc := bigfloat.Exp(z).Float64()
+		z64, acc := bigfloat.Exp(new(big.Float).Set(z)).Float64()
 
 		want := math.Exp(r)
 
@@ -113,7 +113,7 @@ func BenchmarkExp(b *testing.B) {
 		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
-				bigfloat.Exp(z)
+				bigfloat.Exp(new(big.Float).Set(z))
 			}
 		})
 	}

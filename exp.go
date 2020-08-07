@@ -5,20 +5,18 @@ import (
 	"math/big"
 )
 
-// Exp returns a big.Float representation of exp(z). Precision is
-// the same as that of z. The function returns +Inf
-// when z = +Inf, and 0 when z = -Inf.
+// Exp sets z to exp(z) to its precision and returns z. The result is zero if z
+// is -inf and +inf if z is +inf. If the precision of z is zero, then the
+// result will be 1 with precision 53.
 func Exp(z *big.Float) *big.Float {
-	// exp(0) == 1
 	if z.Sign() == 0 {
-		return big.NewFloat(1).SetPrec(z.Prec())
+		return z.SetFloat64(1)
 	}
 	if z.IsInf() {
-		r := new(big.Float).SetPrec(z.Prec())
-		if z.Sign() > 0 {
-			r.SetInf(false)
+		if z.Sign() < 0 {
+			z.Set(&gzero)
 		}
-		return r
+		return z
 	}
 
 	guess := new(big.Float)
@@ -33,7 +31,7 @@ func Exp(z *big.Float) *big.Float {
 		halfZ := new(big.Float).Mul(z, big.NewFloat(0.5))
 		halfExp := Exp(halfZ.SetPrec(z.Prec() + 64))
 		// TODO: avoid recursion
-		return new(big.Float).Mul(halfExp, halfExp).SetPrec(z.Prec())
+		return z.Mul(halfExp, halfExp)
 	}
 	// we got a nice IEEE-754 estimate
 	guess.SetFloat64(zf)
@@ -45,7 +43,7 @@ func Exp(z *big.Float) *big.Float {
 		return x.Mul(x, t)
 	}
 
-	x := newton(f, guess, z.Prec())
+	x := newton(f, guess, z.Prec()) // TODO: make newton operate in place
 
-	return x
+	return z.Set(x)
 }

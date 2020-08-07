@@ -127,3 +127,6 @@ func newton(fOverDf func(z *big.Float) *big.Float, guess *big.Float, dPrec uint)
 
 	return guess.SetPrec(dPrec)
 }
+
+// gzero is a global zero that is never modified.
+var gzero big.Float
