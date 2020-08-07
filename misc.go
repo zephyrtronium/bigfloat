@@ -130,3 +130,18 @@ func newton(fOverDf func(z *big.Float) *big.Float, guess *big.Float, dPrec uint)
 
 // gzero is a global zero that is never modified.
 var gzero big.Float
+
+// An ErrNaN panic is raised by an operation that would lead to a NaN under
+// IEEE-754 rules. ErrNaN implements the error interface, and it unwraps to a
+// big.ErrNaN value with an empty message.
+type ErrNaN struct {
+	msg string
+}
+
+func (err ErrNaN) Error() string {
+	return err.msg
+}
+
+func (err ErrNaN) Unwrap() error {
+	return big.ErrNaN{}
+}

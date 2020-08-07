@@ -7,7 +7,7 @@ import "math/big"
 func Pow(z *big.Float, w *big.Float) *big.Float {
 
 	if z.Sign() < 0 {
-		panic("Pow: negative base")
+		panic(ErrNaN{msg: "Pow: negative base"})
 	}
 
 	// Pow(z, 0) = 1.0
