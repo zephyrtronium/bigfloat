@@ -10,9 +10,6 @@ import (
 	"github.com/ALTree/bigfloat"
 )
 
-// See note in sqrt_test.go about which numbers
-// can we safely test this way.
-
 func TestLog(t *testing.T) {
 	for _, test := range []struct {
 		z    string
@@ -36,7 +33,7 @@ func TestLog(t *testing.T) {
 			z := new(big.Float).SetPrec(prec)
 			z.Parse(test.z, 10)
 
-			x := bigfloat.Log(z)
+			x := bigfloat.Log(new(big.Float).Copy(z))
 
 			if x.Cmp(want) != 0 {
 				t.Errorf("prec = %d, Log(%v) =\ngot %g;\n want %g", prec, test.z, x, want)
@@ -50,7 +47,7 @@ func testLogFloat64(scale float64, nTests int, t *testing.T) {
 		r := rand.Float64() * scale
 
 		z := big.NewFloat(r)
-		x64, acc := bigfloat.Log(z).Float64()
+		x64, acc := bigfloat.Log(new(big.Float).Copy(z)).Float64()
 
 		want := math.Log(r)
 
@@ -107,7 +104,7 @@ func BenchmarkLog(b *testing.B) {
 		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
-				bigfloat.Log(z)
+				bigfloat.Log(new(big.Float).Copy(z))
 			}
 		})
 	}

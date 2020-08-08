@@ -1,24 +1,23 @@
 package bigfloat
 
 import (
-	"math"
 	"math/big"
 )
 
-// Log returns a big.Float representation of the natural logarithm of
-// z. Precision is the same as the one of the argument. The function
-// panics if z is negative, returns -Inf when z = 0, and +Inf when z =
-// +Inf
+// Log sets z to its natural logarithm. Panics if z is negative, including -0;
+// returns -Inf when z = +0, and +Inf when z = +Inf
 func Log(z *big.Float) *big.Float {
-
 	// panic on negative z
-	if z.Sign() == -1 {
+	if z.Signbit() {
 		panic(ErrNaN{msg: "Log: argument is negative"})
 	}
-
 	// Log(0) = -Inf
 	if z.Sign() == 0 {
-		return big.NewFloat(math.Inf(-1)).SetPrec(z.Prec())
+		return z.SetInf(true)
+	}
+	// Log(+Inf) = +Inf
+	if z.IsInf() {
+		return z
 	}
 
 	prec := z.Prec() + 64 // guard digits
@@ -29,23 +28,16 @@ func Log(z *big.Float) *big.Float {
 
 	// Log(1) = 0
 	if z.Cmp(one) == 0 {
-		return big.NewFloat(0).SetPrec(z.Prec())
+		return z.Set(&gzero)
 	}
 
-	// Log(+Inf) = +Inf
-	if z.IsInf() {
-		return big.NewFloat(math.Inf(+1)).SetPrec(z.Prec())
-	}
-
-	x := new(big.Float).SetPrec(prec)
+	z.SetPrec(prec)
 
 	// if 0 < z < 1 we compute log(z) as -log(1/z)
 	var neg bool
 	if z.Cmp(one) < 0 {
-		x.Quo(one, z)
+		z.Quo(one, z)
 		neg = true
-	} else {
-		x.Set(z)
 	}
 
 	// We scale up x until x >= 2**(prec/2), and then we'll be allowed
@@ -58,28 +50,26 @@ func Log(z *big.Float) *big.Float {
 	lim.SetMantExp(two, int(prec/2))
 
 	k := 0
-	for x.Cmp(lim) < 0 {
-		x.Mul(x, x)
+	for z.Cmp(lim) < 0 {
+		z.Mul(z, z)
 		k++
 	}
 
-	// Compute the natural log of x using the fact that
-	//     log(x) = π / (2 * AGM(1, 4/x))
+	// Compute the natural log of z using the fact that
+	//     log(z) = π / (2 * AGM(1, 4/z))
 	// if
-	//     x >= 2**(prec/2),
+	//     z >= 2**(prec/2),
 	// where prec is the desired precision (in bits)
 	pi := pi(prec)
-	agm := agm(one, x.Quo(four, x)) // agm = AGM(1, 4/x)
-
-	x.Quo(pi, x.Mul(two, agm)) // reuse x, we don't need it
+	agm := agm(one, z.Quo(four, z)) // agm = AGM(1, 4/z)
+	z.Quo(pi, z.Mul(two, agm))
 
 	if neg {
-		x.Neg(x)
+		z.Neg(z)
 	}
-
 	// scale the result back multiplying by 2**-k
 	// reuse lim to reduce allocations.
-	x.Mul(x, lim.SetMantExp(one, -k))
+	z.Mul(z, lim.SetMantExp(one, -k))
 
-	return x.SetPrec(z.Prec())
+	return z.SetPrec(prec - 64)
 }

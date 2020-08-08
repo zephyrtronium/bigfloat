@@ -39,7 +39,7 @@ func Exp(z *big.Float) *big.Float {
 	// f(t)/f'(t) = t*(log(t) - z)
 	f := func(t *big.Float) *big.Float {
 		x := new(big.Float)
-		x.Sub(Log(t), z)
+		x.Sub(Log(new(big.Float).Copy(t)), z)
 		return x.Mul(x, t)
 	}
 
