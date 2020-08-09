@@ -2,11 +2,18 @@ package bigfloat
 
 import "math/big"
 
-// Pow returns a big.Float representation of z**w. Precision is the same as the one
-// of the first argument. The function panics when z is negative.
-func Pow(z *big.Float, w *big.Float) *big.Float {
-
-	if z.Sign() < 0 {
+// Pow sets o to z**w to o's precision and returns o. Panics with ErrNaN when
+// z is negative. If o's precision is zero, then it is given the larger
+// of z's and w's precision.
+func Pow(o, z, w *big.Float) *big.Float {
+	if o.Prec() == 0 {
+		if z.Prec() >= w.Prec() {
+			o.SetPrec(z.Prec())
+		} else {
+			o.SetPrec(w.Prec())
+		}
+	}
+	if z.Signbit() {
 		panic(ErrNaN{msg: "Pow: negative base"})
 	}
 
@@ -22,12 +29,12 @@ func Pow(z *big.Float, w *big.Float) *big.Float {
 	}
 
 	// Pow(z, -w) = 1 / Pow(z, w)
-	if w.Sign() < 0 {
-		x := new(big.Float)
-		zExt := new(big.Float).Copy(z).SetPrec(z.Prec() + 64)
-		wNeg := new(big.Float).Neg(w)
-		return x.Quo(big.NewFloat(1), Pow(zExt, wNeg)).SetPrec(z.Prec())
-	}
+	// TODO: is this actually better? Lots of allocations...
+	// if w.Sign() < 0 {
+	// 	zExt := new(big.Float).Copy(z).SetPrec(z.Prec() + 64)
+	// 	wNeg := new(big.Float).Neg(w)
+	// 	return o.Quo(big.NewFloat(1), Pow(o, zExt, wNeg))
+	// }
 
 	// w integer fast path (disabled because introduces rounding
 	// errors)
@@ -37,11 +44,11 @@ func Pow(z *big.Float, w *big.Float) *big.Float {
 	}
 
 	// compute w**z as exp(z log(w))
-	x := new(big.Float)
+	o.SetPrec(o.Prec() + 64) // guard digits
 	logZ := Log(new(big.Float).SetPrec(z.Prec()+64), z)
-	x.Mul(new(big.Float).Set(w).SetPrec(z.Prec()+64), logZ)
-	x = Exp(x, x)
-	return x.SetPrec(z.Prec())
+	o.Mul(new(big.Float).Set(w).SetPrec(z.Prec()+64), logZ)
+	o = Exp(o, o)
+	return o.SetPrec(o.Prec() - 64)
 
 }
 
