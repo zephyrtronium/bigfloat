@@ -8,7 +8,7 @@ import (
 
 const maxPrec uint = 1100
 
-func TestAgm(t *testing.T) {
+func TestAGM(t *testing.T) {
 	for _, test := range []struct {
 		a, b string
 		want string
@@ -30,7 +30,7 @@ func TestAgm(t *testing.T) {
 			b := new(big.Float).SetPrec(prec)
 			b.Parse(test.b, 10)
 
-			z := agm(a, b)
+			z := AGM(new(big.Float), a, b)
 
 			if z.Cmp(want) != 0 {
 				t.Errorf("prec = %d, Agm(%v, %v) =\ngot  %g;\nwant %g", prec, test.a, test.b, z, want)
@@ -58,14 +58,15 @@ func TestPi(t *testing.T) {
 
 // ---------- Benchmarks ----------
 
-func BenchmarkAgm(b *testing.B) {
+func BenchmarkAGM(b *testing.B) {
 	for _, prec := range []uint{1e2, 1e3, 1e4, 1e5} {
 		x := new(big.Float).SetPrec(prec).SetFloat64(1)
 		y := new(big.Float).SetPrec(prec).SetFloat64(0.125)
+		o := new(big.Float).SetPrec(prec + 64).SetPrec(0)
 		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
-				agm(x, y)
+				AGM(o, x, y)
 			}
 		})
 	}

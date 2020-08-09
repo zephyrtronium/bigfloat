@@ -2,15 +2,19 @@ package bigfloat
 
 import "math/big"
 
-// agm returns the arithmetic-geometric mean of a and b.
-// a and b must have the same precision.
-func agm(a, b *big.Float) *big.Float {
-
-	if a.Prec() != b.Prec() {
-		panic("agm: different precisions")
+// AGM sets o to the limit of the arithmetic-geometric mean progression of a
+// and b, to o's precision, and returns o. If o's precision is zero, then it is
+// given the larger of a's and b's precision.
+func AGM(o, a, b *big.Float) *big.Float {
+	prec := o.Prec()
+	if prec == 0 {
+		if a.Prec() >= b.Prec() {
+			prec = a.Prec()
+		} else {
+			prec = b.Prec()
+		}
 	}
-
-	prec := a.Prec()
+	o.SetPrec(prec + 64)
 
 	// do not overwrite a and b
 	a2 := new(big.Float).Copy(a).SetPrec(prec + 64)
@@ -26,15 +30,17 @@ func agm(a, b *big.Float) *big.Float {
 	lim.SetMantExp(big.NewFloat(1).SetPrec(prec+64), -int(prec+1))
 
 	half := big.NewFloat(0.5)
-	t := new(big.Float)
 
-	for t.Sub(a2, b2).Cmp(lim) != -1 {
-		t.Copy(a2)
+	for {
+		o.Copy(a2)
 		a2.Add(a2, b2).Mul(a2, half)
-		b2.Sqrt(b2.Mul(b2, t))
+		b2.Sqrt(b2.Mul(b2, o))
+		if o.Sub(a2, b2).Cmp(lim) == -1 {
+			break
+		}
 	}
 
-	return a2.SetPrec(prec)
+	return o.Copy(a2).SetPrec(prec)
 }
 
 var piCache *big.Float
