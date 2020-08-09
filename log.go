@@ -4,40 +4,46 @@ import (
 	"math/big"
 )
 
-// Log sets z to its natural logarithm. Panics if z is negative, including -0;
-// returns -Inf when z = +0, and +Inf when z = +Inf
-func Log(z *big.Float) *big.Float {
+// Log sets o to z's natural logarithm to o's precision and returns o. Panics
+// with ErrNaN if z is negative, including -0; returns -Inf when z = +0, and
+// +Inf when z = +Inf. If o's precision is zero, then it is given the
+// precision of z.
+func Log(o, z *big.Float) *big.Float {
+	if o.Prec() == 0 {
+		o.SetPrec(z.Prec())
+	}
 	// panic on negative z
 	if z.Signbit() {
 		panic(ErrNaN{msg: "Log: argument is negative"})
 	}
 	// Log(0) = -Inf
 	if z.Sign() == 0 {
-		return z.SetInf(true)
+		return o.SetInf(true)
 	}
 	// Log(+Inf) = +Inf
 	if z.IsInf() {
-		return z
+		return o.Set(z)
 	}
 
-	prec := z.Prec() + 64 // guard digits
+	prec := o.Prec() + 64 // guard digits
 
 	one := big.NewFloat(1).SetPrec(prec)
 	two := big.NewFloat(2).SetPrec(prec)
 	four := big.NewFloat(4).SetPrec(prec)
 
-	// Log(1) = 0
-	if z.Cmp(one) == 0 {
-		return z.Set(&gzero)
-	}
-
-	z.SetPrec(prec)
-
-	// if 0 < z < 1 we compute log(z) as -log(1/z)
 	var neg bool
-	if z.Cmp(one) < 0 {
-		z.Quo(one, z)
+	switch z.Cmp(one) {
+	case 1:
+		o.SetPrec(prec).Set(z)
+	case -1:
+		// if 0 < z < 1 we compute log(z) as -log(1/z)
+		o.SetPrec(prec).Quo(one, z)
 		neg = true
+	case 0:
+		// Log(1) = 0
+		return o.Set(&gzero)
+	default:
+		panic("bigfloat: unexpected comparison result, not 0, 1, or -1")
 	}
 
 	// We scale up x until x >= 2**(prec/2), and then we'll be allowed
@@ -50,8 +56,8 @@ func Log(z *big.Float) *big.Float {
 	lim.SetMantExp(two, int(prec/2))
 
 	k := 0
-	for z.Cmp(lim) < 0 {
-		z.Mul(z, z)
+	for o.Cmp(lim) < 0 {
+		o.Mul(o, o)
 		k++
 	}
 
@@ -61,15 +67,15 @@ func Log(z *big.Float) *big.Float {
 	//     z >= 2**(prec/2),
 	// where prec is the desired precision (in bits)
 	pi := pi(prec)
-	agm := agm(one, z.Quo(four, z)) // agm = AGM(1, 4/z)
-	z.Quo(pi, z.Mul(two, agm))
+	agm := agm(one, o.Quo(four, o)) // agm = AGM(1, 4/z)
+	o.Quo(pi, o.Mul(two, agm))
 
 	if neg {
-		z.Neg(z)
+		o.Neg(o)
 	}
 	// scale the result back multiplying by 2**-k
 	// reuse lim to reduce allocations.
-	z.Mul(z, lim.SetMantExp(one, -k))
+	o.Mul(o, lim.SetMantExp(one, -k))
 
-	return z.SetPrec(prec - 64)
+	return o.SetPrec(prec - 64)
 }
