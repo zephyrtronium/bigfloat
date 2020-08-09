@@ -33,14 +33,14 @@ func TestExp(t *testing.T) {
 		{"-100", "3.7200759760208359629596958038631183373588922923767819671206138766632904758958157181571187786422814966019356176423110698002479856420525356002661856882839075574388191160228448691497585855102816611741608772370701345082175755257496876380478927279529400619796226477050521097935092405571614981699373980650794385017392666116669084820355852767349264735965334e-44"},
 		{"-1000", "5.0759588975494567652918094795743369193055992828928373618323938454105405429748191756796621690465428678636671068310652851135787934480190632251259072300213915638091771495398351108574919194309548129952421441572726108465407163812260104924530270737073247546217081943180823516857873407345613076984468096760005536701904004361380296144254899617340297251706670e-435"},
 	} {
-		for _, prec := range []uint{24, 53, 64, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000} {
+		for _, prec := range []uint{24, 53, 64, 100, 117, 200, 300, 400, 500, 600, 700, 800, 900, 1000} {
 			want := new(big.Float).SetPrec(prec)
 			want.Parse(test.want, 10)
 
 			z := new(big.Float).SetPrec(prec)
 			z.Parse(test.z, 10)
 
-			x := bigfloat.Exp(new(big.Float).Set(z))
+			x := bigfloat.Exp(new(big.Float), z)
 
 			if x.Cmp(want) != 0 {
 				t.Errorf("prec = %d, Exp(%v) =\ngot  %g;\nwant %g", prec, test.z, x, want)
@@ -54,7 +54,7 @@ func testExpFloat64(scale float64, nTests int, t *testing.T) {
 		r := rand.Float64() * scale
 
 		z := big.NewFloat(r)
-		z64, acc := bigfloat.Exp(new(big.Float).Set(z)).Float64()
+		z64, acc := bigfloat.Exp(new(big.Float), z).Float64()
 
 		want := math.Exp(r)
 
@@ -94,7 +94,7 @@ func TestExpSpecialValues(t *testing.T) {
 		math.Inf(-1),
 	} {
 		z := big.NewFloat(f)
-		x64, acc := bigfloat.Exp(z).Float64()
+		x64, acc := bigfloat.Exp(z, z).Float64()
 		want := math.Exp(f)
 		if x64 != want || acc != big.Exact {
 			t.Errorf("Log(%f) =\n got %g (%s);\nwant %g (Exact)", f, x64, acc, want)
@@ -106,14 +106,15 @@ func TestExpSpecialValues(t *testing.T) {
 
 func BenchmarkExp(b *testing.B) {
 	z := big.NewFloat(2).SetPrec(1e5)
-	_ = bigfloat.Exp(z) // fill pi cache before benchmarking
+	bigfloat.Exp(new(big.Float), z) // fill pi cache before benchmarking
 
 	for _, prec := range []uint{1e2, 1e3, 1e4, 1e5} {
 		z = big.NewFloat(2).SetPrec(prec)
+		o := new(big.Float)
 		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
-				bigfloat.Exp(new(big.Float).Set(z))
+				bigfloat.Exp(o, z)
 			}
 		})
 	}

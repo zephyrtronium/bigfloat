@@ -5,21 +5,28 @@ import (
 	"math/big"
 )
 
-// Exp sets z to exp(z) to its precision and returns z. The result is zero if z
-// is -inf and +inf if z is +inf. If the precision of z is zero, then the
-// result will be 1 with precision 53.
-func Exp(z *big.Float) *big.Float {
+// Exp sets o to exp(z) to o's precision and returns o. The result is zero if z
+// is -inf and +inf if z is +inf. If o's precision is zero, then it is given
+// the precision of z.
+func Exp(o, z *big.Float) *big.Float {
+	if o.Prec() == 0 {
+		o.SetPrec(z.Prec())
+	}
 	if z.Sign() == 0 {
-		return z.SetFloat64(1)
+		return o.SetFloat64(1)
 	}
 	if z.IsInf() {
 		if z.Sign() < 0 {
-			z.Set(&gzero)
+			return o.Set(&gzero)
 		}
-		return z
+		return o.Set(z)
 	}
 
-	guess := new(big.Float)
+	p := o
+	if p == z {
+		// We need z for Newton's algorithm, so ensure we don't overwrite it.
+		p = new(big.Float).SetPrec(z.Prec())
+	}
 	// try to get initial estimate using IEEE-754 math
 	// TODO: save work (and an import of math) by checking the exponent of z
 	zf, _ := z.Float64()
@@ -28,22 +35,22 @@ func Exp(z *big.Float) *big.Float {
 		// too big or too small for IEEE-754 math,
 		// perform argument reduction using
 		//     e^{2z} = (e^z)²
-		halfZ := new(big.Float).Mul(z, big.NewFloat(0.5))
-		halfExp := Exp(halfZ.SetPrec(z.Prec() + 64))
+		// TODO: use MantExp instead of Mul
+		halfZ := new(big.Float).SetPrec(p.Prec()+64).Mul(z, big.NewFloat(0.5))
 		// TODO: avoid recursion
-		return z.Mul(halfExp, halfExp)
+		halfExp := Exp(halfZ, halfZ)
+		return p.Mul(halfExp, halfExp)
 	}
 	// we got a nice IEEE-754 estimate
-	guess.SetFloat64(zf)
+	guess := big.NewFloat(zf)
 
 	// f(t)/f'(t) = t*(log(t) - z)
 	f := func(t *big.Float) *big.Float {
-		x := new(big.Float)
-		x.Sub(Log(new(big.Float).Copy(t)), z)
-		return x.Mul(x, t)
+		p.Sub(Log(new(big.Float).Copy(t)), z)
+		return p.Mul(p, t)
 	}
 
 	x := newton(f, guess, z.Prec()) // TODO: make newton operate in place
 
-	return z.Set(x)
+	return o.Set(x)
 }
