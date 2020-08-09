@@ -1,16 +1,18 @@
 ### Floats 
 
-Package bigfloat provides the implementation of a few additional operations (square root, exponentiation, natural logarithm, exponential function) for the standard library `big.Float` type.
+Package bigfloat provides the implementation of a few additional operations (exponentiation, basic elementary functions) for the standard library `big.Float` type.
 
-[![GoDoc](https://godoc.org/github.com/ALTree/bigfloat?status.png)](https://godoc.org/github.com/ALTree/bigfloat)
+[![GoDoc](https://godoc.org/github.com/zephyrtronium/bigfloat?status.png)](https://godoc.org/github.com/zephyrtronium/bigfloat)
+
+This package is a fork of [https://github.com/ALTree/bigfloat]. The general API was changed to use the output argument convention of `math/big`, and there are a number of other changes besides.
 
 #### Install
 
-```
-go get github.com/ALTree/bigfloat
-```
+With Go version 1.10 or higher installed:
 
-Please note that `bigfloat` requires Go >= 1.5 (since the `big.Float` type is not available in previous versions). 
+```
+go get github.com/zephyrtronium/bigfloat
+```
 
 #### Example
 
@@ -21,7 +23,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ALTree/bigfloat"
+	"github.com/zephyrtronium/bigfloat"
 )
 
 // In this example, we'll compute the value of the
@@ -32,14 +34,12 @@ func main() {
 	const prec = 1000
 
 	two := big.NewFloat(2).SetPrec(prec)
-
-	// Compute √2.
-	// Sqrt uses the argument's precision.
-	sqrtTwo := bigfloat.Sqrt(two)
+	sqrtTwo := new(big.Float).Sqrt(two)
 
 	// Compute 2 ** √2
-	// Pow uses the first argument's precision.
-	gsc := bigfloat.Pow(two, sqrtTwo)
+	// Pow uses the first argument's precision, or the greater of the others'
+	// if the first's is zero like here.
+	gsc := bigfloat.Pow(new(big.Float), two, sqrtTwo)
 
 	// Print gsc, truncated to 60 decimal digits.
 	fmt.Printf("gsc = %.60f...\n", gsc)
@@ -53,4 +53,4 @@ gsc = 2.665144142690225188650297249873139848274211313714659492835980...
 
 #### Documentation
 
-See https://godoc.org/github.com/ALTree/bigfloat
+See https://godoc.org/github.com/zephyrtronium/bigfloat
