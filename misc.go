@@ -43,15 +43,13 @@ func AGM(o, a, b *big.Float) *big.Float {
 	return o.Copy(a2).SetPrec(prec)
 }
 
-var piCache *big.Float
-var piCachePrec uint
+var piCache *big.Float // TODO: synchronize
 var enablePiCache bool = true
 
 func init() {
 	if !enablePiCache {
 		return
 	}
-
 	piCache, _, _ = new(big.Float).SetPrec(1024).Parse("3."+
 		"14159265358979323846264338327950288419716939937510"+
 		"58209749445923078164062862089986280348253421170679"+
@@ -60,15 +58,18 @@ func init() {
 		"44288109756659334461284756482337867831652712019091"+
 		"45648566923460348610454326648213393607260249141273"+
 		"72458700660631558817488152092096282925409171536444", 10)
-
-	piCachePrec = 1024
 }
 
-// pi returns pi to prec bits of precision
-func pi(prec uint) *big.Float {
-
-	if prec <= piCachePrec && enablePiCache {
-		return new(big.Float).Copy(piCache).SetPrec(prec)
+// Pi sets a to pi to a's precision (including if a's precision is zero) and
+// returns a.
+func Pi(a *big.Float) *big.Float {
+	prec := a.Prec()
+	if prec == 0 {
+		// Zero-precision floats represent only ±0 or ±inf.
+		return a.Set(&gzero)
+	}
+	if enablePiCache && prec <= piCache.Prec() {
+		return a.Set(piCache)
 	}
 
 	// Following R. P. Brent, Multiple-precision zero-finding
@@ -81,7 +82,7 @@ func pi(prec uint) *big.Float {
 	sqrt2 := new(big.Float).Sqrt(two)
 
 	// initialization
-	a := big.NewFloat(1).SetPrec(prec + 64)    // a = 1
+	a.SetFloat64(1).SetPrec(prec + 64)         // a = 1
 	b := new(big.Float).Mul(sqrt2, half)       // b = 1/√2
 	t := big.NewFloat(0.25).SetPrec(prec + 64) // t = 1/4
 	x := big.NewFloat(1).SetPrec(prec + 64)    // x = 1
@@ -108,10 +109,21 @@ func pi(prec uint) *big.Float {
 
 	if enablePiCache {
 		piCache.Copy(a)
-		piCachePrec = prec
 	}
-
 	return a
+}
+
+// cachedPi returns the cached pi value with at least prec precision. If the pi
+// cache is enabled and has a precision of at least prec, then this does not
+// allocate. The returned value must not be modified.
+func cachedPi(prec uint) *big.Float {
+	if !enablePiCache {
+		return Pi(new(big.Float).SetPrec(prec))
+	}
+	if piCache.Prec() >= prec {
+		return piCache
+	}
+	return Pi(piCache) // updates piCache
 }
 
 // returns an approximate (to precision dPrec) solution to

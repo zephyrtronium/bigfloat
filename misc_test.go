@@ -47,7 +47,7 @@ func TestPi(t *testing.T) {
 		want := new(big.Float).SetPrec(prec)
 		want.Parse(piStr, 10)
 
-		z := pi(prec)
+		z := Pi(new(big.Float).SetPrec(prec))
 
 		if z.Cmp(want) != 0 {
 			t.Errorf("Pi(%d) =\ngot  %g;\nwant %g", prec, z, want)
@@ -74,11 +74,13 @@ func BenchmarkAGM(b *testing.B) {
 
 func BenchmarkPi(b *testing.B) {
 	enablePiCache = false
+	p := new(big.Float)
 	for _, prec := range []uint{1e2, 1e3, 1e4, 1e5} {
+		p.SetPrec(prec)
 		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
-				pi(prec)
+				Pi(p)
 			}
 		})
 	}
