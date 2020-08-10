@@ -1,6 +1,10 @@
 package bigfloat
 
-import "math/big"
+import (
+	"math/big"
+	"sync"
+	"sync/atomic"
+)
 
 // AGM sets o to the limit of the arithmetic-geometric mean progression of a
 // and b, to o's precision, and returns o. If o's precision is zero, then it is
@@ -43,14 +47,15 @@ func AGM(o, a, b *big.Float) *big.Float {
 	return o.Copy(a2).SetPrec(prec)
 }
 
-var piCache *big.Float // TODO: synchronize
+var piCache atomic.Value
 var enablePiCache bool = true
+var piMu sync.Mutex // writers only
 
 func init() {
 	if !enablePiCache {
 		return
 	}
-	piCache, _, _ = new(big.Float).SetPrec(1024).Parse("3."+
+	pi, _, err := new(big.Float).SetPrec(1024).Parse("3."+
 		"14159265358979323846264338327950288419716939937510"+
 		"58209749445923078164062862089986280348253421170679"+
 		"82148086513282306647093844609550582231725359408128"+
@@ -58,9 +63,48 @@ func init() {
 		"44288109756659334461284756482337867831652712019091"+
 		"45648566923460348610454326648213393607260249141273"+
 		"72458700660631558817488152092096282925409171536444", 10)
+	if err != nil {
+		panic(err)
+	}
+	piCache.Store(pi)
 }
 
-// Pi sets a to pi to a's precision (including if a's precision is zero) and
+// loadPi returns the current cached pi value. It may panic if enablePiCache is
+// false. Use cachedPi or Pi instead; this is just a convenience function for
+// those safe wrappers.
+func loadPi() *big.Float {
+	return piCache.Load().(*big.Float)
+}
+
+// cachedPi returns the cached pi value with at least prec precision. If the pi
+// cache is enabled and has a precision of at least prec, then this does not
+// allocate. The returned value must not be modified. It is safe to call this
+// concurrently.
+func cachedPi(prec uint) *big.Float {
+	if !enablePiCache {
+		return Pi(new(big.Float).SetPrec(prec))
+	}
+	pi := piCache.Load().(*big.Float)
+	if pi.Prec() >= prec {
+		return pi
+	}
+
+	// The current cached value doesn't have enough precision. Calculate a new
+	// pi value.
+	piMu.Lock()
+	defer piMu.Unlock()
+	// It's possible another goroutine obtained a more precise pi value while
+	// we were locking piMu. Re-check the cached value.
+	pi = piCache.Load().(*big.Float)
+	if pi.Prec() >= prec {
+		return pi
+	}
+	pi = piCalc(new(big.Float).SetPrec(prec))
+	piCache.Store(pi)
+	return pi
+}
+
+// Pi sets a to π to a's precision (even if a's precision is zero) and
 // returns a.
 func Pi(a *big.Float) *big.Float {
 	prec := a.Prec()
@@ -68,9 +112,26 @@ func Pi(a *big.Float) *big.Float {
 		// Zero-precision floats represent only ±0 or ±inf.
 		return a.Set(&gzero)
 	}
-	if enablePiCache && prec <= piCache.Prec() {
-		return a.Set(piCache)
+	if enablePiCache {
+		pi := loadPi()
+		if prec <= pi.Prec() {
+			return a.Set(pi)
+		}
 	}
+	piCalc(a)
+	if enablePiCache {
+		piMu.Lock()
+		defer piMu.Unlock()
+		if loadPi().Prec() < prec {
+			piCache.Store(new(big.Float).Copy(a))
+		}
+	}
+	return a
+}
+
+// piCalc performs the actual computation to obtain a value for π.
+func piCalc(a *big.Float) *big.Float {
+	prec := a.Prec()
 
 	// Following R. P. Brent, Multiple-precision zero-finding
 	// methods and the complexity of elementary function evaluation,
@@ -80,18 +141,14 @@ func Pi(a *big.Float) *big.Float {
 	half := big.NewFloat(0.5)
 	two := big.NewFloat(2).SetPrec(prec + 64)
 	sqrt2 := new(big.Float).Sqrt(two)
-
 	// initialization
 	a.SetFloat64(1).SetPrec(prec + 64)         // a = 1
 	b := new(big.Float).Mul(sqrt2, half)       // b = 1/√2
 	t := big.NewFloat(0.25).SetPrec(prec + 64) // t = 1/4
 	x := big.NewFloat(1).SetPrec(prec + 64)    // x = 1
-
 	// limit is 2**(-prec)
 	lim := new(big.Float)
 	lim.SetMantExp(big.NewFloat(1).SetPrec(prec+64), -int(prec+1))
-
-	// temp variables
 	y := new(big.Float)
 	for y.Sub(a, b).Cmp(lim) != -1 { // assume a > b
 		y.Copy(a)
@@ -103,27 +160,8 @@ func Pi(a *big.Float) *big.Float {
 		t.Sub(t, y)           // t = t - x(a-y)²
 		x.Mul(x, two)         // x = 2x
 	}
-
 	a.Mul(a, a).Quo(a, t) // π = a² / t
-	a.SetPrec(prec)
-
-	if enablePiCache {
-		piCache.Copy(a)
-	}
-	return a
-}
-
-// cachedPi returns the cached pi value with at least prec precision. If the pi
-// cache is enabled and has a precision of at least prec, then this does not
-// allocate. The returned value must not be modified.
-func cachedPi(prec uint) *big.Float {
-	if !enablePiCache {
-		return Pi(new(big.Float).SetPrec(prec))
-	}
-	if piCache.Prec() >= prec {
-		return piCache
-	}
-	return Pi(piCache) // updates piCache
+	return a.SetPrec(prec)
 }
 
 // returns an approximate (to precision dPrec) solution to

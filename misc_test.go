@@ -3,6 +3,7 @@ package bigfloat
 import (
 	"fmt"
 	"math/big"
+	"sync"
 	"testing"
 )
 
@@ -54,6 +55,36 @@ func TestPi(t *testing.T) {
 		}
 	}
 	enablePiCache = true
+}
+
+func TestPiConcurrent(t *testing.T) {
+	if !enablePiCache {
+		t.SkipNow()
+	}
+	const piStr = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153644"
+	// The pi cache starts at a precision of 1024, so to make this test more
+	// meaningful, we'll cheat and set it to a zero-precision value.
+	cached := loadPi()
+	piCache.Store(new(big.Float))
+	defer piCache.Store(cached)
+	cases := []uint{24, 53, 64, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
+	const procs = 100
+	var wg sync.WaitGroup
+	wg.Add(procs)
+	for i := 0; i < procs; i++ {
+		go func() {
+			for _, prec := range cases {
+				want := new(big.Float).SetPrec(prec)
+				want.Parse(piStr, 10)
+				z := Pi(new(big.Float).SetPrec(prec))
+				if z.Cmp(want) != 0 {
+					t.Errorf("Pi(%d) = \ngot  %g;\nwant %g", prec, z, want)
+				}
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 // ---------- Benchmarks ----------
