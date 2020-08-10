@@ -55,9 +55,7 @@ func testLogFloat64(scale float64, nTests int, t *testing.T) {
 		// accurate, so it doesn't make sense to require 100%
 		// compatibility with it, since it happens that math.Log
 		// returns a result with the last bit off (see Issue #9546).
-		//
-		// Just require a relative error smaller than 1e-14.
-		if math.Abs(x64-want)/want > 1e-14 || acc != big.Exact {
+		if !notexactly(x64, want) || acc != big.Exact {
 			t.Errorf("Log(%g) =\n got %g (%s);\nwant %g (Exact)", z, x64, acc, want)
 		}
 	}

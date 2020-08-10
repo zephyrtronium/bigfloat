@@ -49,6 +49,18 @@ func TestExp(t *testing.T) {
 	}
 }
 
+// notexactly returns true if x equals y to within four epsilons of the larger
+// of the two.
+func notexactly(x, y float64) bool {
+	var eps float64
+	if x >= y {
+		eps = 2 * (math.Nextafter(x, math.Inf(0)) - x)
+	} else {
+		eps = 2 * (math.Nextafter(y, math.Inf(0)) - y)
+	}
+	return x+eps >= y && y+eps >= x
+}
+
 func testExpFloat64(scale float64, nTests int, t *testing.T) {
 	for i := 0; i < nTests; i++ {
 		r := rand.Float64() * scale
@@ -62,9 +74,7 @@ func testExpFloat64(scale float64, nTests int, t *testing.T) {
 		// accurate, so it doesn't make sense to require 100%
 		// compatibility with it, since it happens that math.Exp
 		// returns a result with the last bit off (same as math.Log).
-		//
-		// Just require a relative error smaller than 1e-14.
-		if math.Abs(z64-want)/want > 1e-14 || acc != big.Exact {
+		if !notexactly(z64, want) || acc != big.Exact {
 			t.Errorf("Exp(%g) =\n got %g (%s);\nwant %g (Exact)", z, z64, acc, want)
 		}
 	}
