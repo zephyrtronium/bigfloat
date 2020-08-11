@@ -251,7 +251,7 @@ func TestRound(t *testing.T) {
 		},
 		{
 			o: new(big.Float).SetPrec(1).SetMode(big.ToPositiveInf), op: 1,
-			z: big.NewFloat(12),
+			z: big.NewFloat(12.5),
 			r: [...]*big.Float{
 				big.ToNearestEven: big.NewFloat(16),
 				big.ToNearestAway: big.NewFloat(16),
@@ -263,7 +263,7 @@ func TestRound(t *testing.T) {
 		},
 		{
 			o: new(big.Float).SetPrec(1).SetMode(big.ToNegativeInf), op: 1,
-			z: big.NewFloat(12),
+			z: big.NewFloat(12.5),
 			r: [...]*big.Float{
 				big.ToNearestEven: big.NewFloat(8),
 				big.ToNearestAway: big.NewFloat(8),
@@ -288,14 +288,14 @@ func TestRound(t *testing.T) {
 	}
 	modes := []big.RoundingMode{big.ToNearestEven, big.ToNearestAway, big.ToZero, big.AwayFromZero, big.ToNegativeInf, big.ToPositiveInf}
 	for _, c := range cases {
-		t.Run(fmt.Sprintf("%gto%d", c.z, c.o.Prec()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%gto%dby%v", c.z, c.o.Prec(), c.o.Mode()), func(t *testing.T) {
 			for _, mode := range modes {
 				Round(c.o, c.z, mode)
 				if c.o.Cmp(c.r[mode]) != 0 {
-					t.Errorf("wrong result: want %g, got %g", c.r[mode], c.o)
+					t.Errorf("wrong result under mode %v: want %g, got %g", mode, c.r[mode], c.o)
 				}
 				if c.o.Prec() != c.op {
-					t.Errorf("result has wrong precision: want %d, got %d", c.o.Prec(), c.op)
+					t.Errorf("result has wrong precision under mode %v: want %d, got %d", mode, c.o.Prec(), c.op)
 				}
 			}
 		})

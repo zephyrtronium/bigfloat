@@ -90,14 +90,14 @@ func Round(o, z *big.Float, mode big.RoundingMode) *big.Float {
 			panic("bigfloat: unknown rounding mode " + mode.String())
 		}
 	}
-	defer o.SetMode(o.Mode())
-	o.SetMode(mode)
 	// z has a nonzero integer part. Give o exactly enough precision to
 	// represent that integer part, then set it to z and restore its precision.
 	// But first, check that o actually needs to shrink to do this.
 	if o.Prec() <= uint(exp) {
 		return o.Set(z)
 	}
+	defer o.SetMode(o.Mode())
+	o.SetMode(mode)
 	p := o.Prec()
 	return o.SetPrec(uint(exp)).Set(z).SetPrec(p)
 }
