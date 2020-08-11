@@ -47,6 +47,89 @@ func AGM(o, a, b *big.Float) *big.Float {
 	return o.Copy(a2).SetPrec(prec)
 }
 
+// Round sets o to z rounded to the nearest integer as constrained by mode and
+// returns o. If o's precision is zero, then it is given z's precision.
+// Otherwise, if o has insufficient precision to represent the result of
+// rounding z, the result will be rounded again according to o's rounding mode.
+// As a special case, if z is infinite, o is set to the same infinity. If o and
+// z are the same, Round does not allocate.
+func Round(o, z *big.Float, mode big.RoundingMode) *big.Float {
+	if z.IsInt() || z.IsInf() {
+		// This branch notably includes z == 0 and z.Prec() == 0.
+		return o.Set(z)
+	}
+	if o.Prec() == 0 {
+		o.SetPrec(z.Prec())
+	}
+	exp := z.MantExp(nil)
+	if exp <= 0 {
+		// z ∈ (-1, 1) \ {0}. There is no trick to pull off this rounding.
+		switch mode {
+		case big.ToNearestEven:
+			return round0even(o, z)
+		case big.ToNearestAway:
+			return round0away(o, z)
+		case big.ToZero:
+			return o.Set(&gzero)
+		case big.AwayFromZero:
+			if z.Signbit() {
+				return o.Set(&gonem)
+			}
+			return o.Set(&gonep)
+		case big.ToNegativeInf:
+			if z.Signbit() {
+				return o.Set(&gonem)
+			}
+			return o.Set(&gzero)
+		case big.ToPositiveInf:
+			if z.Signbit() {
+				return o.Set(&gzero)
+			}
+			return o.Set(&gonep)
+		default:
+			panic("bigfloat: unknown rounding mode " + mode.String())
+		}
+	}
+	defer o.SetMode(o.Mode())
+	o.SetMode(mode)
+	// z has a nonzero integer part. Give o exactly enough precision to
+	// represent that integer part, then set it to z and restore its precision.
+	// But first, check that o actually needs to shrink to do this.
+	if o.Prec() <= uint(exp) {
+		return o.Set(z)
+	}
+	p := o.Prec()
+	return o.SetPrec(uint(exp)).Set(z).SetPrec(p)
+}
+
+// round0even sets o to -1 if z < -0.5, 0 if -0.5 <= z <= 0.5, or 1 if 0.5 < z.
+func round0even(o, z *big.Float) *big.Float {
+	if z.Signbit() {
+		if z.Cmp(&ghalfm) < 0 {
+			return o.Set(&gonem)
+		}
+		return o.Set(&gzero)
+	}
+	if z.Cmp(&ghalfp) > 0 {
+		return o.Set(&gonep)
+	}
+	return o.Set(&gzero)
+}
+
+// round0away sets o to -1 if z <= -0.5, 0 if -0.5 < z < 0.5, or 1 if 0.5 <= z.
+func round0away(o, z *big.Float) *big.Float {
+	if z.Signbit() {
+		if z.Cmp(&ghalfm) <= 0 {
+			return o.Set(&gonem)
+		}
+		return o.Set(&gzero)
+	}
+	if z.Cmp(&ghalfp) >= 0 {
+		return o.Set(&gonep)
+	}
+	return o.Set(&gzero)
+}
+
 var piCache atomic.Value
 var enablePiCache bool = true
 var piMu sync.Mutex // writers only
@@ -184,8 +267,14 @@ func newton(fOverDf func(z *big.Float) *big.Float, guess *big.Float, dPrec uint)
 	return guess.SetPrec(dPrec)
 }
 
-// gzero is a global zero that is never modified.
-var gzero big.Float
+// Global variables that are never modified.
+var (
+	gzero  big.Float // +0
+	ghalfp = *big.NewFloat(0.5)
+	ghalfm = *big.NewFloat(-0.5)
+	gonep  = *big.NewFloat(1)
+	gonem  = *big.NewFloat(-1)
+)
 
 // An ErrNaN panic is raised by an operation that would lead to a NaN under
 // IEEE-754 rules. ErrNaN implements the error interface, and it unwraps to a

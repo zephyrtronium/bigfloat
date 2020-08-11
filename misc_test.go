@@ -87,6 +87,221 @@ func TestPiConcurrent(t *testing.T) {
 	wg.Wait()
 }
 
+func TestRound(t *testing.T) {
+	cases := []struct {
+		o, z *big.Float
+		r    [6]*big.Float
+		op   uint
+	}{
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(0),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(0),
+				big.ToNearestAway: big.NewFloat(0),
+				big.ToZero:        big.NewFloat(0),
+				big.AwayFromZero:  big.NewFloat(0),
+				big.ToNegativeInf: big.NewFloat(0),
+				big.ToPositiveInf: big.NewFloat(0),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(1),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(1),
+				big.ToNearestAway: big.NewFloat(1),
+				big.ToZero:        big.NewFloat(1),
+				big.AwayFromZero:  big.NewFloat(1),
+				big.ToNegativeInf: big.NewFloat(1),
+				big.ToPositiveInf: big.NewFloat(1),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(0.25),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(0),
+				big.ToNearestAway: big.NewFloat(0),
+				big.ToZero:        big.NewFloat(0),
+				big.AwayFromZero:  big.NewFloat(1),
+				big.ToNegativeInf: big.NewFloat(0),
+				big.ToPositiveInf: big.NewFloat(1),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(-0.25),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(0),
+				big.ToNearestAway: big.NewFloat(0),
+				big.ToZero:        big.NewFloat(0),
+				big.AwayFromZero:  big.NewFloat(-1),
+				big.ToNegativeInf: big.NewFloat(-1),
+				big.ToPositiveInf: big.NewFloat(0),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(0.5),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(0),
+				big.ToNearestAway: big.NewFloat(1),
+				big.ToZero:        big.NewFloat(0),
+				big.AwayFromZero:  big.NewFloat(1),
+				big.ToNegativeInf: big.NewFloat(0),
+				big.ToPositiveInf: big.NewFloat(1),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(-0.5),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(0),
+				big.ToNearestAway: big.NewFloat(-1),
+				big.ToZero:        big.NewFloat(0),
+				big.AwayFromZero:  big.NewFloat(-1),
+				big.ToNegativeInf: big.NewFloat(-1),
+				big.ToPositiveInf: big.NewFloat(0),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(0.75),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(1),
+				big.ToNearestAway: big.NewFloat(1),
+				big.ToZero:        big.NewFloat(0),
+				big.AwayFromZero:  big.NewFloat(1),
+				big.ToNegativeInf: big.NewFloat(0),
+				big.ToPositiveInf: big.NewFloat(1),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(-0.75),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(-1),
+				big.ToNearestAway: big.NewFloat(-1),
+				big.ToZero:        big.NewFloat(0),
+				big.AwayFromZero:  big.NewFloat(-1),
+				big.ToNegativeInf: big.NewFloat(-1),
+				big.ToPositiveInf: big.NewFloat(0),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(1.25),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(1),
+				big.ToNearestAway: big.NewFloat(1),
+				big.ToZero:        big.NewFloat(1),
+				big.AwayFromZero:  big.NewFloat(2),
+				big.ToNegativeInf: big.NewFloat(1),
+				big.ToPositiveInf: big.NewFloat(2),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(-1.25),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(-1),
+				big.ToNearestAway: big.NewFloat(-1),
+				big.ToZero:        big.NewFloat(-1),
+				big.AwayFromZero:  big.NewFloat(-2),
+				big.ToNegativeInf: big.NewFloat(-2),
+				big.ToPositiveInf: big.NewFloat(-1),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(1.5),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(2),
+				big.ToNearestAway: big.NewFloat(2),
+				big.ToZero:        big.NewFloat(1),
+				big.AwayFromZero:  big.NewFloat(2),
+				big.ToNegativeInf: big.NewFloat(1),
+				big.ToPositiveInf: big.NewFloat(2),
+			},
+		},
+		{
+			o: new(big.Float), op: 53,
+			z: big.NewFloat(-1.5),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(-2),
+				big.ToNearestAway: big.NewFloat(-2),
+				big.ToZero:        big.NewFloat(-1),
+				big.AwayFromZero:  big.NewFloat(-2),
+				big.ToNegativeInf: big.NewFloat(-2),
+				big.ToPositiveInf: big.NewFloat(-1),
+			},
+		},
+		{
+			o: new(big.Float).SetPrec(1), op: 1,
+			z: big.NewFloat(0),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(0),
+				big.ToNearestAway: big.NewFloat(0),
+				big.ToZero:        big.NewFloat(0),
+				big.AwayFromZero:  big.NewFloat(0),
+				big.ToNegativeInf: big.NewFloat(0),
+				big.ToPositiveInf: big.NewFloat(0),
+			},
+		},
+		{
+			o: new(big.Float).SetPrec(1).SetMode(big.ToPositiveInf), op: 1,
+			z: big.NewFloat(12),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(16),
+				big.ToNearestAway: big.NewFloat(16),
+				big.ToZero:        big.NewFloat(16),
+				big.AwayFromZero:  big.NewFloat(16),
+				big.ToNegativeInf: big.NewFloat(16),
+				big.ToPositiveInf: big.NewFloat(16),
+			},
+		},
+		{
+			o: new(big.Float).SetPrec(1).SetMode(big.ToNegativeInf), op: 1,
+			z: big.NewFloat(12),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(8),
+				big.ToNearestAway: big.NewFloat(8),
+				big.ToZero:        big.NewFloat(8),
+				big.AwayFromZero:  big.NewFloat(8),
+				big.ToNegativeInf: big.NewFloat(8),
+				big.ToPositiveInf: big.NewFloat(8),
+			},
+		},
+		{
+			o: new(big.Float).SetPrec(128), op: 128,
+			z: big.NewFloat(3.5),
+			r: [...]*big.Float{
+				big.ToNearestEven: big.NewFloat(4),
+				big.ToNearestAway: big.NewFloat(4),
+				big.ToZero:        big.NewFloat(3),
+				big.AwayFromZero:  big.NewFloat(4),
+				big.ToNegativeInf: big.NewFloat(3),
+				big.ToPositiveInf: big.NewFloat(4),
+			},
+		},
+	}
+	modes := []big.RoundingMode{big.ToNearestEven, big.ToNearestAway, big.ToZero, big.AwayFromZero, big.ToNegativeInf, big.ToPositiveInf}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%gto%d", c.z, c.o.Prec()), func(t *testing.T) {
+			for _, mode := range modes {
+				Round(c.o, c.z, mode)
+				if c.o.Cmp(c.r[mode]) != 0 {
+					t.Errorf("wrong result: want %g, got %g", c.r[mode], c.o)
+				}
+				if c.o.Prec() != c.op {
+					t.Errorf("result has wrong precision: want %d, got %d", c.o.Prec(), c.op)
+				}
+			}
+		})
+	}
+}
+
 // ---------- Benchmarks ----------
 
 func BenchmarkAGM(b *testing.B) {
