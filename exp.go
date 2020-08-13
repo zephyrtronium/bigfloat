@@ -35,8 +35,7 @@ func Exp(o, z *big.Float) *big.Float {
 		// too big or too small for IEEE-754 math,
 		// perform argument reduction using
 		//     e^{2z} = (e^z)²
-		// TODO: use MantExp instead of Mul
-		halfZ := new(big.Float).SetPrec(p.Prec()+64).Mul(z, big.NewFloat(0.5))
+		halfZ := quicksh(new(big.Float), z, -1).SetPrec(p.Prec() + 64)
 		// TODO: avoid recursion
 		halfExp := Exp(halfZ, halfZ)
 		return p.Mul(halfExp, halfExp)

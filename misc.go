@@ -33,11 +33,9 @@ func AGM(o, a, b *big.Float) *big.Float {
 	lim := new(big.Float)
 	lim.SetMantExp(big.NewFloat(1).SetPrec(prec+64), -int(prec+1))
 
-	half := big.NewFloat(0.5)
-
 	for {
 		o.Copy(a2)
-		a2.Add(a2, b2).Mul(a2, half)
+		quicksh(a2, a2.Add(a2, b2), -1)
 		b2.Sqrt(b2.Mul(b2, o))
 		if o.Sub(a2, b2).Cmp(lim) == -1 {
 			break
@@ -221,12 +219,11 @@ func piCalc(a *big.Float) *big.Float {
 	// in Analytic Computational Complexity, Academic Press,
 	// New York, 1975, Section 8.
 
-	half := big.NewFloat(0.5)
-	two := big.NewFloat(2).SetPrec(prec + 64)
-	sqrt2 := new(big.Float).Sqrt(two)
+	sqrt2 := new(big.Float).SetPrec(prec + 64).Set(&gtwop)
+	sqrt2.Sqrt(sqrt2)
 	// initialization
 	a.SetFloat64(1).SetPrec(prec + 64)         // a = 1
-	b := new(big.Float).Mul(sqrt2, half)       // b = 1/√2
+	b := quicksh(new(big.Float), sqrt2, -1)    // b = 1/√2
 	t := big.NewFloat(0.25).SetPrec(prec + 64) // t = 1/4
 	x := big.NewFloat(1).SetPrec(prec + 64)    // x = 1
 	// limit is 2**(-prec)
@@ -235,13 +232,13 @@ func piCalc(a *big.Float) *big.Float {
 	y := new(big.Float)
 	for y.Sub(a, b).Cmp(lim) != -1 { // assume a > b
 		y.Copy(a)
-		a.Add(a, b).Mul(a, half) // a = (a+b)/2
-		b.Sqrt(b.Mul(b, y))      // b = √(ab)
+		quicksh(a, a.Add(a, b), -1) // a = (a+b)/2
+		b.Sqrt(b.Mul(b, y))         // b = √(ab)
 
 		y.Sub(a, y)           // y = a - y
 		y.Mul(y, y).Mul(y, x) // y = x(a-y)²
 		t.Sub(t, y)           // t = t - x(a-y)²
-		x.Mul(x, two)         // x = 2x
+		quicksh(x, x, 1)      // x = 2x
 	}
 	a.Mul(a, a).Quo(a, t) // π = a² / t
 	return a.SetPrec(prec)
@@ -267,6 +264,13 @@ func newton(fOverDf func(z *big.Float) *big.Float, guess *big.Float, dPrec uint)
 	return guess.SetPrec(dPrec)
 }
 
+// quicksh efficiently multiplies z by 2**n and sets o to the result. o's
+// precision and rounding mode are overwritten.
+func quicksh(o, z *big.Float, n int) *big.Float {
+	exp := z.MantExp(o)
+	return o.SetMantExp(o, exp+n)
+}
+
 // Global variables that are never modified.
 var (
 	gzero  big.Float // +0
@@ -274,6 +278,7 @@ var (
 	ghalfm = *big.NewFloat(-0.5)
 	gonep  = *big.NewFloat(1)
 	gonem  = *big.NewFloat(-1)
+	gtwop  = *big.NewFloat(2)
 )
 
 // An ErrNaN panic is raised by an operation that would lead to a NaN under
